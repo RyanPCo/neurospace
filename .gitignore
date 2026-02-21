@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Data & Models
+data/raw/
+models/checkpoints/
+models/kernel_cache/
+models/best_model.pt
+
+# Database
+cancerscope.db
+cancerscope.db-shm
+cancerscope.db-wal
+
+# Misc
+.DS_Store
+.env
+*.log
