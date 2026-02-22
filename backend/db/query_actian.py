@@ -1,7 +1,7 @@
 from cortex import CortexClient
 
-def get_slice_id(subject_number: int, slice_index: int, split: str) -> int:
-    """Calculate the vector database ID based on subject, slice, and split."""
+def _get_slice_id(subject_number: int, slice_index: int, split: str) -> int:
+    """Internal helper: Calculate the vector database ID based on subject, slice, and split."""
     base_id = (subject_number - 1) * 135 + (slice_index - 10)
     
     if split.lower() in ("train", "training"):
@@ -11,7 +11,7 @@ def get_slice_id(subject_number: int, slice_index: int, split: str) -> int:
     else:
         raise ValueError(f"Unknown split: '{split}'. Must be 'training' or 'validation'.")
 
-def query_similar_slices(
+def get_similar_subjects_and_slices(
     subject_number: int,
     slice_index: int,
     split: str,
@@ -20,17 +20,18 @@ def query_similar_slices(
     candidates: int = 200,
 ) -> list[dict]:
     """
-    Fetch a slice's vector from the Actian VectorAI collection by ID, search for 
-    similar vectors, and return the payload of the best-scoring slice from 
-    each of the *top_n_subjects* most similar distinct subjects (excluding the input subject).
+    Looks up a specific MRI slice in the vector DB and returns the top N most 
+    similar slices from *distinct* subjects.
+    
+    Returns:
+        A list of dicts formatted like: [{"subject": 42, "slice": 75}, ...]
     """
-    target_id = get_slice_id(subject_number, slice_index, split)
+    target_id = _get_slice_id(subject_number, slice_index, split)
 
+    # 1. Fetch the query vector and search the database
     with CortexClient("100.77.221.91:50051") as client:
-        client.open_collection(collection_name)
-        
         record = client.get_vector(collection_name=collection_name, id=target_id)
-        query_vec = record.vector if hasattr(record, "vector") else record["vector"]
+        query_vec = record[0]  # Extracts the vector list from the tuple
         
         results = client.search(
             collection_name=collection_name,
@@ -39,28 +40,32 @@ def query_similar_slices(
             with_payload=True,
         )
 
-    # Pre-populate with the input subject so we skip ALL of their slices
+    # 2. Filter and extract just the subject and slice numbers
     seen_subjects: set[str] = {str(subject_number)}
-    payloads: list[dict] = []
+    final_results: list[dict] = []
 
     for r in results:
         payload: dict = r.payload or {}
         
-        # Cast to string to safely match the input subject format
-        subject_id: str = str(
-            payload.get("subject_id")
-            or payload.get("patient_id")
-            or r.id
-        )
+        # Safely extract the subject ID
+        raw_subject = payload.get("subject_id") or payload.get("patient_id") or r.id
+        subject_str = str(raw_subject)
         
-        # This will now trigger for both the exact input image AND other slices from that subject
-        if subject_id in seen_subjects:
+        if subject_str in seen_subjects:
             continue
             
-        seen_subjects.add(subject_id)
-        payloads.append({**payload, "_id": r.id, "_score": r.score})
+        seen_subjects.add(subject_str)
         
-        if len(payloads) >= top_n_subjects:
+        # Safely extract the slice number. 
+        # Note: Change "slice_indices" to whatever key you actually used in your payload!
+        slice_num = payload.get("slice_indices") or payload.get("slice", -1)
+        
+        final_results.append({
+            "subject": raw_subject,
+            "slice": slice_num
+        })
+        
+        if len(final_results) >= top_n_subjects:
             break
 
-    return payloads
+    return final_results
