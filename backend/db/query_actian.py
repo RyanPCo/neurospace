@@ -15,7 +15,7 @@ def query_similar_slices(
     subject_number: int,
     slice_index: int,
     split: str,
-    collection_name: str = "breakhis_slices",
+    collection_name: str = "brats_t1_slices",
     top_n_subjects: int = 10,
     candidates: int = 200,
 ) -> list[dict]:
