@@ -1,11 +1,15 @@
 import client from './client'
-import type { PaginatedImages, ImageDetail, GradCAMResult } from '../types'
+import type {
+  AnnotationRetrainRequest,
+  AnnotationRetrainResult,
+  PaginatedImages,
+  ImageDetail,
+  GradCAMResult,
+} from '../types'
 
 interface ImageFilters {
   page?: number
   page_size?: number
-  magnification?: string
-  subtype?: string
   predicted_class?: string
   split?: string
 }
@@ -19,6 +23,9 @@ export const imagesApi = {
 
   gradcam: (id: string) =>
     client.get<GradCAMResult>(`/images/${id}/gradcam`).then(r => r.data),
+
+  retrainFromAnnotation: (id: string, body: AnnotationRetrainRequest = {}) =>
+    client.post<AnnotationRetrainResult>(`/images/${id}/retrain-from-annotation`, body).then(r => r.data),
 
   fileUrl: (id: string) => `/api/images/${id}/file`,
 }

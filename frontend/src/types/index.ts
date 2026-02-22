@@ -3,8 +3,6 @@
 export interface ImageSummary {
   id: string
   filename: string
-  magnification: string
-  subtype: string
   ground_truth: string
   split: string
   width: number | null
@@ -18,7 +16,6 @@ export interface ImageDetail extends ImageSummary {
   file_path: string
   model_version: string | null
   class_probs: Record<string, number> | null
-  subtype_predicted: string | null
 }
 
 export interface GradCAMResult {
@@ -28,6 +25,29 @@ export interface GradCAMResult {
   top_kernel_indices: number[]
   predicted_class: string
   confidence: number
+}
+
+export interface AnnotationRetrainRequest {
+  steps?: number
+  lr?: number
+  alpha?: number
+  beta?: number
+  gamma?: number
+  preserve_ce_weight?: number
+  target_class?: string
+  model_in?: string
+  model_out?: string
+}
+
+export interface AnnotationRetrainResult {
+  image_id: string
+  message: string
+  roi_mask_path: string
+  neg_mask_path: string
+  model_in: string
+  model_out: string
+  command: string
+  log_tail: string
 }
 
 export interface PaginatedImages {
@@ -109,7 +129,7 @@ export interface TrainingConfig {
   learning_rate: number
   weight_decay: number
   batch_size: number
-  annotation_weight: number
+  spatial_loss_weight: number
 }
 
 export interface TrainingRun {
@@ -159,4 +179,36 @@ export interface WSMessage {
   val_acc?: number | null
   message?: string
   status?: string
+}
+
+// ─── 3D Grad-CAM ──────────────────────────────────────────────────────────────
+
+export interface Gradcam3DRunRequest {
+  volume_path: string
+  segmentation_path?: string | null
+  model_path?: string
+  axis?: 'axial' | 'coronal' | 'sagittal'
+  slice_index?: number
+  out_dir?: string
+  save_every?: number
+  brain_threshold?: number
+  min_brain_fraction?: number
+  cam_percentile?: number
+  global_percentile?: number
+  gradcam_threshold?: number
+  launch_viewer?: boolean
+}
+
+export interface Gradcam3DRunResponse {
+  message: string
+  preview_png: string
+  heatmap_3d: string
+  overlay_4d: string
+  volume_path: string
+  axis: 'axial' | 'coronal' | 'sagittal'
+  num_slices: number
+  default_slice_index: number
+  viewer_launched: boolean
+  apply_command: string
+  render_command: string | null
 }

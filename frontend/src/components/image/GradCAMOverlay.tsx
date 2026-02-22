@@ -6,44 +6,54 @@ import { imagesApi } from '../../api/images'
 
 interface Props {
   imageId: string
+  modelVersion?: string | null
   gradcam: GradCAMResult | null
   loading: boolean
 }
 
-export function GradCAMOverlay({ imageId, gradcam, loading }: Props) {
-  const [opacity, setOpacity] = useState(0.6)
+export function GradCAMOverlay({ imageId, modelVersion, gradcam, loading }: Props) {
+  const [opacity, setOpacity] = useState(0.7)
 
   return (
     <div className="space-y-3">
-      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Grad-CAM</div>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Grad-CAM</span>
+        {modelVersion && (
+          <span className="text-xs text-gray-600 font-mono">{modelVersion}</span>
+        )}
+      </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-40">
+        <div className="flex flex-col items-center justify-center h-40 gap-3 text-gray-500">
           <LoadingSpinner />
+          <span className="text-xs">Computing activation map…</span>
         </div>
       ) : gradcam ? (
         <div className="space-y-3">
-          <div className="relative rounded-lg overflow-hidden bg-gray-800">
-            <img
-              src={imagesApi.fileUrl(imageId)}
-              alt="tissue"
-              className="w-full block"
-            />
+          <div className="relative rounded-xl overflow-hidden bg-gray-800 shadow-inner">
+            <img src={imagesApi.fileUrl(imageId)} alt="tissue" className="w-full block" />
             <img
               src={`data:image/png;base64,${gradcam.overlay_b64}`}
-              alt="GradCAM overlay"
-              className="absolute inset-0 w-full h-full object-cover mix-blend-multiply"
-              style={{ opacity }}
+              alt="GradCAM heatmap"
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ opacity, mixBlendMode: 'multiply' }}
             />
           </div>
           <OpacitySlider value={opacity} onChange={setOpacity} label="Heatmap" />
-          <div className="text-xs text-gray-500">
-            Top activated kernels: {gradcam.top_kernel_indices.slice(0, 5).join(', ')}
+          <div className="flex items-center gap-1.5 text-xs text-gray-600">
+            <span>Top kernels:</span>
+            <span className="font-mono text-gray-500">
+              {gradcam.top_kernel_indices.slice(0, 5).join(', ')}
+            </span>
           </div>
         </div>
       ) : (
-        <div className="text-sm text-gray-500 py-6 text-center">
-          No GradCAM available. Ensure model is trained.
+        <div className="flex flex-col items-center justify-center py-8 gap-2 text-gray-600 text-center">
+          <div className="text-2xl opacity-40">🌡</div>
+          <div className="text-xs">
+            GradCAM unavailable.<br />
+            Ensure the model is trained and loaded.
+          </div>
         </div>
       )}
     </div>

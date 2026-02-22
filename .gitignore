@@ -31,3 +31,10 @@ cancerscope.db-wal
 .DS_Store
 .env
 *.log
+
+# Local heavy/generated artifacts
+.venv-kaggle/
+data/
+models/
+backend/scripts/media/
+.claude/

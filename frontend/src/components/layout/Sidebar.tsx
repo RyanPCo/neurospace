@@ -4,6 +4,7 @@ const links = [
   { to: '/', label: 'Validation Browser', icon: '🔬' },
   { to: '/kernels', label: 'Kernel Explorer', icon: '🧩' },
   { to: '/training', label: 'Training', icon: '📈' },
+  { to: '/viewer3d', label: '3D Viewer', icon: '🧠' },
 ]
 
 export function Sidebar() {
@@ -11,7 +12,7 @@ export function Sidebar() {
     <aside className="w-52 bg-gray-900 border-r border-gray-800 flex flex-col">
       <div className="px-4 py-5 border-b border-gray-800">
         <span className="font-bold text-lg text-brand-500">CancerScope</span>
-        <div className="text-xs text-gray-500 mt-0.5">Histopathology AI</div>
+        <div className="text-xs text-gray-500 mt-0.5">Brain Tumor MRI AI</div>
       </div>
       <nav className="flex-1 py-4 space-y-1 px-2">
         {links.map(l => (

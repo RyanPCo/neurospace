@@ -12,9 +12,10 @@ class Image(Base):
     id = Column(String, primary_key=True)  # SHA256 of path
     filename = Column(String, nullable=False)
     file_path = Column(String, nullable=False, unique=True)
-    magnification = Column(String, nullable=False)  # 40x, 100x, 200x, 400x
-    subtype = Column(String, nullable=False)  # e.g. DC, LC, MC, PC (malignant) or A, F, PT, TA (benign)
-    ground_truth = Column(String, nullable=False)  # "malignant" or "benign"
+    # Legacy metadata fields retained for DB backward compatibility.
+    magnification = Column(String, nullable=False)
+    subtype = Column(String, nullable=False)
+    ground_truth = Column(String, nullable=False)  # e.g. glioma/meningioma/notumor/pituitary
     split = Column(String, nullable=False)  # train, val, test
     width = Column(Integer)
     height = Column(Integer)
@@ -30,9 +31,9 @@ class Prediction(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     image_id = Column(String, ForeignKey("images.id"), nullable=False)
     model_version = Column(String, nullable=False)
-    predicted_class = Column(String, nullable=False)  # "malignant" or "benign"
+    predicted_class = Column(String, nullable=False)  # e.g. glioma/meningioma/notumor/pituitary
     confidence = Column(Float, nullable=False)
-    class_probs_json = Column(Text)  # JSON string {"malignant": 0.8, "benign": 0.2}
+    class_probs_json = Column(Text)  # JSON string of class probability distribution
     subtype_predicted = Column(String)
     subtype_probs_json = Column(Text)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -45,7 +46,7 @@ class Annotation(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     image_id = Column(String, ForeignKey("images.id"), nullable=False)
-    label_class = Column(String, nullable=False)  # "malignant" or "benign"
+    label_class = Column(String, nullable=False)  # e.g. tumor class or "gradcam_focus"
     geometry_type = Column(String, nullable=False)  # "polygon" or "brush"
     geometry_json = Column(Text, nullable=False)  # normalized [0,1] coords
     notes = Column(Text)

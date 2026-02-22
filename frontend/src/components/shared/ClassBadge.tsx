@@ -3,16 +3,25 @@ interface Props {
   size?: 'sm' | 'md'
 }
 
+const LABELS: Record<string, string> = {
+  gradcam_focus: '⚡ Focus',
+  notumor: 'No Tumor',
+}
+
+const COLORS: Record<string, string> = {
+  glioma:        'bg-red-600 text-white',
+  meningioma:    'bg-orange-500 text-white',
+  pituitary:     'bg-blue-600 text-white',
+  notumor:       'bg-green-600 text-white',
+  gradcam_focus: 'bg-amber-500 text-black',
+}
+
 export function ClassBadge({ cls, size = 'md' }: Props) {
-  const colors: Record<string, string> = {
-    malignant: 'bg-red-900/60 text-red-300 border-red-700',
-    benign: 'bg-green-900/60 text-green-300 border-green-700',
-  }
-  const pad = size === 'sm' ? 'px-1.5 py-0.5 text-xs' : 'px-2.5 py-1 text-sm'
-  const style = colors[cls ?? ''] ?? 'bg-gray-800 text-gray-400 border-gray-700'
+  const pad   = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm'
+  const style = COLORS[cls ?? ''] ?? 'bg-gray-700 text-gray-300'
   return (
-    <span className={`inline-flex items-center rounded-full border font-medium ${pad} ${style}`}>
-      {cls ?? 'unknown'}
+    <span className={`inline-flex items-center rounded-full font-medium ${pad} ${style}`}>
+      {LABELS[cls ?? ''] ?? cls ?? 'unknown'}
     </span>
   )
 }

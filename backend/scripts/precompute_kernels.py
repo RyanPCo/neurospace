@@ -8,9 +8,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import settings
 from db.database import init_db, SessionLocal
 from db.crud import upsert_kernel
-from core.model.resnet import load_model
+from core.model.cnn import load_model
 from core.model.kernel_analyzer import KernelAnalyzer, ANALYZED_LAYERS
-from core.dataset.breakhis import make_dataloaders
+from core.dataset.brain_tumor import make_dataloaders
 
 
 def main():
@@ -39,11 +39,13 @@ def main():
     for layer_name in ANALYZED_LAYERS:
         print(f"\nProcessing layer: {layer_name}")
 
-        # Determine number of filters for this layer
         module_path = ANALYZED_LAYERS[layer_name]
         module = model
         for attr in module_path.split("."):
-            module = getattr(module, attr, None)
+            if attr.isdigit():
+                module = module[int(attr)]
+            else:
+                module = getattr(module, attr, None)
             if module is None:
                 break
 
@@ -54,14 +56,12 @@ def main():
         n_filters = module.weight.shape[0]
         print(f"  {n_filters} filters")
 
-        # Compute importance scores
         if val_loader:
             print("  Computing importance scores...")
             importance_scores = analyzer.compute_importance_scores(val_loader, layer_name)
         else:
             importance_scores = {}
 
-        # Generate filter visualizations and save to DB
         for filter_idx in range(n_filters):
             kernel_id = f"{layer_name}_{filter_idx}"
             cache_path = settings.kernel_cache_dir / f"{kernel_id}.png"
@@ -84,7 +84,7 @@ def main():
                 last_scored_at=datetime.now(timezone.utc),
             )
 
-            if (filter_idx + 1) % 64 == 0:
+            if (filter_idx + 1) % 32 == 0:
                 print(f"    {filter_idx + 1}/{n_filters} done...")
 
         db.commit()
@@ -93,6 +93,7 @@ def main():
     db.close()
     print(f"\nKernel pre-computation complete!")
     print(f"  Cache: {settings.kernel_cache_dir}")
+    print(f"  Total filters: 32 + 64 + 128 = 224")
 
 
 if __name__ == "__main__":

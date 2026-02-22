@@ -85,9 +85,8 @@ class TrainingService:
 
     def _run_training(self, run_id: str, config: dict):
         """Blocking training function — runs in executor thread."""
-        from core.model.resnet import CancerScopeModel
         from core.model.trainer import Trainer
-        from core.dataset.breakhis import make_dataloaders
+        from core.dataset.brain_tumor import make_dataloaders
 
         db = SessionLocal()
         try:
@@ -126,6 +125,10 @@ class TrainingService:
                 lr=config.get("learning_rate", settings.learning_rate),
                 weight_decay=config.get("weight_decay", settings.weight_decay),
                 num_epochs=config.get("num_epochs", settings.num_epochs),
+                spatial_loss_weight=config.get(
+                    "spatial_loss_weight",
+                    config.get("annotation_weight", settings.spatial_loss_weight),
+                ),
                 run_id=run_id,
                 stop_flag=self._stop_flag,
                 progress_callback=self._progress_callback,

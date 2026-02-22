@@ -5,11 +5,12 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
-from core.model.resnet import CancerScopeModel
+from core.model.cnn import BrainTumorCNN
+from config import TUMOR_CLASSES
 
 
 def _apply_jet_colormap(gray: np.ndarray) -> np.ndarray:
-    """Apply jet colormap to normalized [0,1] grayscale array → RGB uint8."""
+    """Apply jet colormap to normalised [0,1] grayscale array → RGB uint8."""
     gray = np.clip(gray, 0, 1)
     r = np.clip(1.5 - abs(4 * gray - 3), 0, 1)
     g = np.clip(1.5 - abs(4 * gray - 2), 0, 1)
@@ -26,11 +27,11 @@ def _to_base64_png(arr: np.ndarray) -> str:
 
 class GradCAM:
     """
-    Computes class activation maps for a CancerScopeModel using the binary head.
+    Computes class activation maps for BrainTumorCNN using the last conv layer.
     Hooks are registered once and reused. Not thread-safe — use ModelManager's Lock.
     """
 
-    def __init__(self, model: CancerScopeModel):
+    def __init__(self, model: BrainTumorCNN):
         self.model = model
         self._activations: torch.Tensor | None = None
         self._gradients: torch.Tensor | None = None
@@ -63,16 +64,11 @@ class GradCAM:
     ) -> dict:
         """
         Args:
-            image_tensor: (1, 3, H, W) normalized tensor on model device
-            target_class: 0=benign, 1=malignant; if None, uses predicted class
+            image_tensor: (1, 1, 256, 256) normalised grayscale tensor on model device
+            target_class: 0=glioma,1=meningioma,2=notumor,3=pituitary; None → predicted
             original_size: (width, height) to upsample heatmap to
 
-        Returns dict with:
-            heatmap_b64: grayscale PNG base64
-            overlay_b64: jet colormap PNG base64
-            top_kernel_indices: list of int (top-10 most important kernel indices)
-            predicted_class: "benign" or "malignant"
-            confidence: float
+        Returns dict with heatmap_b64, overlay_b64, top_kernel_indices, predicted_class, confidence
         """
         self.model.eval()
         self._activations = None
@@ -80,52 +76,43 @@ class GradCAM:
 
         image_tensor = image_tensor.requires_grad_(False)
 
-        # Forward pass
         out = self.model(image_tensor)
-        binary_logits = out["binary_logits"]  # (1, 2)
-        probs = torch.softmax(binary_logits, dim=1)
+        logits = out["logits"]       # (1, 4)
+        probs = torch.softmax(logits, dim=1)
 
         if target_class is None:
-            target_class = int(binary_logits.argmax(dim=1).item())
+            target_class = int(logits.argmax(dim=1).item())
 
-        # Backward pass for target class
         self.model.zero_grad()
-        score = binary_logits[0, target_class]
+        score = logits[0, target_class]
         score.backward()
 
-        # Compute CAM
-        # _gradients, _activations: (1, 2048, 7, 7)
         if self._gradients is None or self._activations is None:
-            raise RuntimeError("GradCAM hooks did not fire — ensure model ran correctly.")
+            raise RuntimeError("GradCAM hooks did not fire.")
 
-        alpha = self._gradients.mean(dim=(2, 3), keepdim=True)  # (1, 2048, 1, 1)
-        cam = F.relu((alpha * self._activations).sum(dim=1, keepdim=True))  # (1, 1, 7, 7)
+        # alpha: global-average-pool of gradients over spatial dims
+        alpha = self._gradients.mean(dim=(2, 3), keepdim=True)   # (1, 128, 1, 1)
+        cam = F.relu((alpha * self._activations).sum(dim=1, keepdim=True))  # (1, 1, 30, 30)
 
-        # Upsample
-        target_hw = (original_size[1], original_size[0]) if original_size else (224, 224)
+        # Upsample to original image size
+        target_hw = (original_size[1], original_size[0]) if original_size else (256, 256)
         cam_up = F.interpolate(cam, size=target_hw, mode="bilinear", align_corners=False)
         cam_np = cam_up[0, 0].cpu().numpy()
 
-        # Normalize to [0, 1]
         cam_min, cam_max = cam_np.min(), cam_np.max()
-        if cam_max > cam_min:
-            cam_norm = (cam_np - cam_min) / (cam_max - cam_min)
-        else:
-            cam_norm = np.zeros_like(cam_np)
+        cam_norm = (cam_np - cam_min) / (cam_max - cam_min) if cam_max > cam_min else np.zeros_like(cam_np)
 
-        # Top kernel indices (by gradient magnitude)
+        # Top kernel indices (by gradient magnitude at last conv)
         kernel_importance = self._gradients[0].mean(dim=(1, 2)).abs().cpu().numpy()
         top_kernels = np.argsort(kernel_importance)[::-1][:10].tolist()
 
-        # Generate outputs
-        gray_arr = (cam_norm * 255).astype(np.uint8)
+        gray_arr    = (cam_norm * 255).astype(np.uint8)
         colored_arr = _apply_jet_colormap(cam_norm)
 
-        from core.model.resnet import BINARY_CLASSES
         return {
-            "heatmap_b64": _to_base64_png(gray_arr),
-            "overlay_b64": _to_base64_png(colored_arr),
+            "heatmap_b64":       _to_base64_png(gray_arr),
+            "overlay_b64":       _to_base64_png(colored_arr),
             "top_kernel_indices": top_kernels,
-            "predicted_class": BINARY_CLASSES[target_class],
-            "confidence": float(probs[0, target_class].item()),
+            "predicted_class":   TUMOR_CLASSES[target_class],
+            "confidence":        float(probs[0, target_class].item()),
         }

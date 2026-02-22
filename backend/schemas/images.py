@@ -5,8 +5,6 @@ from typing import Optional
 class ImageSummary(BaseModel):
     id: str
     filename: str
-    magnification: str
-    subtype: str
     ground_truth: str
     split: str
     width: Optional[int] = None
@@ -22,7 +20,6 @@ class ImageDetail(ImageSummary):
     file_path: str
     model_version: Optional[str] = None
     class_probs: Optional[dict] = None
-    subtype_predicted: Optional[str] = None
 
 
 class GradCAMResponse(BaseModel):
@@ -39,3 +36,26 @@ class PaginatedImages(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class AnnotationRetrainRequest(BaseModel):
+    steps: int = 150
+    lr: float = 5e-5
+    alpha: float = 0.5
+    beta: float = 1.0
+    gamma: float = 1.0
+    preserve_ce_weight: float = 0.5
+    target_class: Optional[str] = None
+    model_in: Optional[str] = None
+    model_out: Optional[str] = None
+
+
+class AnnotationRetrainResponse(BaseModel):
+    image_id: str
+    message: str
+    roi_mask_path: str
+    neg_mask_path: str
+    model_in: str
+    model_out: str
+    command: str
+    log_tail: str

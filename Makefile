@@ -1,4 +1,4 @@
-.PHONY: setup index train kernels dev backend frontend clean
+.PHONY: setup index train kernels anim dev backend frontend clean
 
 PYTHON := python
 UVICORN := python -m uvicorn
@@ -14,7 +14,7 @@ setup:
 	@echo "==> Setup complete."
 
 index:
-	@echo "==> Indexing BreakHis dataset..."
+	@echo "==> Indexing brain tumor MRI dataset..."
 	PYTORCH_ENABLE_MPS_FALLBACK=1 $(PYTHON) backend/scripts/index_dataset.py
 	@echo "==> Dataset indexing complete."
 
@@ -27,6 +27,14 @@ kernels:
 	@echo "==> Pre-computing kernel visualizations and importance scores..."
 	PYTORCH_ENABLE_MPS_FALLBACK=1 $(PYTHON) backend/scripts/precompute_kernels.py
 	@echo "==> Kernel pre-computation complete."
+
+anim:
+	@echo "==> Rendering Manim animation (requires: pip install manim)..."
+	pip install -q manim
+	cd backend/scripts && manim -ql manim_animation.py ConstrainedCAMScene
+	mkdir -p frontend/public
+	cp backend/scripts/media/videos/manim_animation/480p15/ConstrainedCAMScene.mp4 frontend/public/constrained_cam.mp4
+	@echo "==> Animation rendered → frontend/public/constrained_cam.mp4"
 
 backend:
 	@echo "==> Starting backend on :8000..."

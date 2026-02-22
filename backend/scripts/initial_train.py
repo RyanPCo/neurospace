@@ -1,4 +1,4 @@
-"""Standalone initial training script."""
+"""Standalone initial training script for Brain Tumor MRI CNN."""
 import sys
 from pathlib import Path
 
@@ -6,9 +6,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import settings
 from db.database import init_db, SessionLocal
-from core.model.resnet import CancerScopeModel
+from core.model.cnn import BrainTumorCNN
 from core.model.trainer import Trainer
-from core.dataset.breakhis import make_dataloaders
+from core.dataset.brain_tumor import make_dataloaders
 
 
 def main():
@@ -17,18 +17,18 @@ def main():
         sys.exit(1)
 
     print(f"Device: {settings.device}")
-    print(f"Loading pretrained ResNet-50...")
+    print("Initialising BrainTumorCNN (training from scratch)...")
 
     init_db()
     settings.checkpoints_dir.mkdir(parents=True, exist_ok=True)
 
-    model = CancerScopeModel(pretrained=True)
+    model = BrainTumorCNN()
     model = model.to(settings.device)
 
     print("Building dataloaders...")
     dataloaders = make_dataloaders()
     print(f"  Train: {len(dataloaders['train'].dataset)} samples")
-    print(f"  Val: {len(dataloaders['val'].dataset)} samples")
+    print(f"  Val:   {len(dataloaders['val'].dataset)} samples")
 
     def progress(data):
         t = data.get("type", "")

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useTrainingStore } from '../store/trainingStore'
 import { TrainingControls } from '../components/training/TrainingControls'
 import { LossChart } from '../components/training/LossChart'
@@ -8,6 +8,7 @@ import { formatDatetime } from '../utils/formatters'
 
 export function TrainingPage() {
   const { history, fetchHistory, fetchStatus } = useTrainingStore()
+  const [showAnim, setShowAnim] = useState(false)
   useTrainingWS()
 
   useEffect(() => {
@@ -17,7 +18,31 @@ export function TrainingPage() {
 
   return (
     <div className="space-y-6 max-w-5xl">
-      <h1 className="font-bold text-lg text-gray-100">Training Dashboard</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="font-bold text-lg text-gray-100">Training Dashboard</h1>
+        <button
+          onClick={() => setShowAnim(v => !v)}
+          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-gray-800 text-amber-400 hover:bg-gray-700 transition-colors border border-gray-700"
+        >
+          ▶ {showAnim ? 'Hide' : 'Show'} Math Animation
+        </button>
+      </div>
+
+      {showAnim && (
+        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-800 flex items-center justify-between">
+            <span className="text-sm font-semibold text-gray-300">Constrained GradCAM Loss — How It Works</span>
+            <button onClick={() => setShowAnim(false)} className="text-gray-600 hover:text-gray-400 text-xs">✕ Close</button>
+          </div>
+          <video
+            src="/constrained_cam.mp4"
+            controls
+            autoPlay
+            className="w-full"
+            style={{ background: '#111827' }}
+          />
+        </div>
+      )}
 
       <TrainingControls />
 

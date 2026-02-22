@@ -12,16 +12,10 @@ def get_images(
     db: Session,
     skip: int = 0,
     limit: int = 50,
-    magnification: Optional[str] = None,
-    subtype: Optional[str] = None,
     predicted_class: Optional[str] = None,
     split: Optional[str] = None,
 ):
     q = db.query(Image)
-    if magnification:
-        q = q.filter(Image.magnification == magnification)
-    if subtype:
-        q = q.filter(Image.subtype == subtype)
     if split:
         q = q.filter(Image.split == split)
     if predicted_class:

@@ -8,7 +8,9 @@ class TrainingConfig(BaseModel):
     learning_rate: float = 1e-4
     weight_decay: float = 1e-4
     batch_size: int = 32
-    annotation_weight: float = 0.3
+    spatial_loss_weight: float = 0.3
+    # Backward-compat key used by older frontend builds.
+    annotation_weight: Optional[float] = None
 
 
 class TrainingRunResponse(BaseModel):

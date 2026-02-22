@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { KernelSummary, KernelActivations } from '../types'
 import { kernelsApi } from '../api/kernels'
+import { toast } from '../components/shared/Toast'
 
 interface KernelStore {
   kernels: KernelSummary[]
@@ -12,7 +13,7 @@ interface KernelStore {
   activations: KernelActivations | null
   loading: boolean
   activationsLoading: boolean
-  error: string | null
+  actioningId: string | null  // kernel id currently being acted on
 
   fetchKernels: () => Promise<void>
   setPage: (page: number) => void
@@ -21,6 +22,7 @@ interface KernelStore {
   fetchActivations: (id: string) => Promise<void>
   deleteKernel: (id: string) => Promise<void>
   reclassifyKernel: (id: string, cls: string) => Promise<void>
+  updateNotes: (id: string, notes: string) => Promise<void>
 }
 
 export const useKernelStore = create<KernelStore>((set, get) => ({
@@ -33,11 +35,11 @@ export const useKernelStore = create<KernelStore>((set, get) => ({
   activations: null,
   loading: false,
   activationsLoading: false,
-  error: null,
+  actioningId: null,
 
   fetchKernels: async () => {
     const { page, pageSize, selectedLayer } = get()
-    set({ loading: true, error: null })
+    set({ loading: true })
     try {
       const data = await kernelsApi.list({
         page, page_size: pageSize,
@@ -46,20 +48,13 @@ export const useKernelStore = create<KernelStore>((set, get) => ({
       })
       set({ kernels: data.items, total: data.total, loading: false })
     } catch (e: any) {
-      set({ error: e.message, loading: false })
+      set({ loading: false })
+      toast.error(`Failed to load kernels: ${e.message}`)
     }
   },
 
-  setPage: (page) => {
-    set({ page })
-    get().fetchKernels()
-  },
-
-  setLayer: (layer) => {
-    set({ selectedLayer: layer, page: 1 })
-    get().fetchKernels()
-  },
-
+  setPage: (page) => { set({ page }); get().fetchKernels() },
+  setLayer: (layer) => { set({ selectedLayer: layer, page: 1 }); get().fetchKernels() },
   selectKernel: (k) => set({ selectedKernel: k, activations: null }),
 
   fetchActivations: async (id) => {
@@ -68,21 +63,52 @@ export const useKernelStore = create<KernelStore>((set, get) => ({
       const data = await kernelsApi.activations(id)
       set({ activations: data, activationsLoading: false })
     } catch (e: any) {
-      set({ error: e.message, activationsLoading: false })
+      set({ activationsLoading: false })
+      toast.error(`Failed to load activations: ${e.message}`)
     }
   },
 
   deleteKernel: async (id) => {
-    await kernelsApi.delete(id)
-    set(state => ({
-      kernels: state.kernels.map(k => k.id === id ? { ...k, is_deleted: true } : k),
-    }))
+    set({ actioningId: id })
+    try {
+      await kernelsApi.delete(id)
+      set(state => ({
+        kernels: state.kernels.map(k => k.id === id ? { ...k, is_deleted: true } : k),
+        actioningId: null,
+        selectedKernel: state.selectedKernel?.id === id ? null : state.selectedKernel,
+      }))
+      toast.success('Kernel marked as deleted — will be zeroed on next retrain')
+    } catch (e: any) {
+      set({ actioningId: null })
+      toast.error(`Failed to delete kernel: ${e.message}`)
+    }
   },
 
   reclassifyKernel: async (id, cls) => {
-    const updated = await kernelsApi.update(id, { assigned_class: cls })
-    set(state => ({
-      kernels: state.kernels.map(k => k.id === id ? updated : k),
-    }))
+    set({ actioningId: id })
+    try {
+      const updated = await kernelsApi.update(id, { assigned_class: cls })
+      set(state => ({
+        kernels: state.kernels.map(k => k.id === id ? updated : k),
+        selectedKernel: state.selectedKernel?.id === id ? updated : state.selectedKernel,
+        actioningId: null,
+      }))
+      toast.success(`Kernel reclassified as ${cls}`)
+    } catch (e: any) {
+      set({ actioningId: null })
+      toast.error(`Failed to reclassify kernel: ${e.message}`)
+    }
+  },
+
+  updateNotes: async (id, notes) => {
+    try {
+      const updated = await kernelsApi.update(id, { doctor_notes: notes })
+      set(state => ({
+        kernels: state.kernels.map(k => k.id === id ? updated : k),
+        selectedKernel: state.selectedKernel?.id === id ? updated : state.selectedKernel,
+      }))
+    } catch (e: any) {
+      toast.error(`Failed to save notes: ${e.message}`)
+    }
   },
 }))

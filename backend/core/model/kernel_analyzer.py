@@ -4,34 +4,36 @@ import io
 from pathlib import Path
 from datetime import datetime, timezone
 
+import matplotlib.cm as cm
 import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import DataLoader
 
 from config import settings
-from core.model.resnet import CancerScopeModel
+from core.model.cnn import BrainTumorCNN
 
 
+# Maps layer_name (kernel_id prefix) → dot-path to the Conv2d module
 ANALYZED_LAYERS = {
-    "layer4.0.conv1": "features.7.0.conv1",
-    "layer4.0.conv2": "features.7.0.conv2",
-    "layer4.0.conv3": "features.7.0.conv3",
-    "layer4.1.conv1": "features.7.1.conv1",
-    "layer4.1.conv2": "features.7.1.conv2",
-    "layer4.1.conv3": "features.7.1.conv3",
-    "layer4.2.conv1": "features.7.2.conv1",
-    "layer4.2.conv2": "features.7.2.conv2",
-    "layer4.2.conv3": "features.7.2.conv3",
+    "conv_block1": "conv_block1.0",   # Conv2d(1,  32, 3)  — 32 filters
+    "conv_block2": "conv_block2.0",   # Conv2d(32, 64, 3)  — 64 filters
+    "conv_block3": "conv_block3.0",   # Conv2d(64, 128, 3) — 128 filters
 }
 
 
-def _get_module_by_path(model: CancerScopeModel, path: str) -> torch.nn.Module | None:
+def _get_module_by_path(model: BrainTumorCNN, path: str) -> torch.nn.Module | None:
     module = model
     for attr in path.split("."):
-        module = getattr(module, attr, None)
-        if module is None:
-            return None
+        if attr.isdigit():
+            try:
+                module = module[int(attr)]
+            except (IndexError, TypeError):
+                return None
+        else:
+            module = getattr(module, attr, None)
+            if module is None:
+                return None
     return module
 
 
@@ -43,7 +45,7 @@ def _arr_to_png_b64(arr: np.ndarray) -> str:
 
 
 class KernelAnalyzer:
-    def __init__(self, model: CancerScopeModel, device: str | None = None):
+    def __init__(self, model: BrainTumorCNN, device: str | None = None):
         self.model = model
         self.device = device or settings.device
 
@@ -61,21 +63,19 @@ class KernelAnalyzer:
             raise ValueError(f"Module at {module_path} has no weight")
 
         weight = module.weight.data[filter_index].cpu()  # (C_in, kH, kW)
-        c_in, kH, kW = weight.shape
 
-        if c_in >= 3:
-            rgb = weight[:3]  # (3, kH, kW)
-        else:
-            rgb = weight.mean(0, keepdim=True).expand(3, -1, -1)
+        # Average across all input channels → signed 2D weight map
+        w_mean = weight.mean(dim=0).numpy()  # (kH, kW)
 
-        # Normalize to [0, 255]
-        mn, mx = rgb.min(), rgb.max()
-        if mx > mn:
-            rgb = (rgb - mn) / (mx - mn)
-        else:
-            rgb = torch.zeros_like(rgb)
+        # Normalize to [-1, 1] preserving sign (diverging scale)
+        abs_max = np.abs(w_mean).max()
+        w_norm = w_mean / abs_max if abs_max > 0 else np.zeros_like(w_mean)
 
-        rgb_np = (rgb.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
+        # Map [-1, 1] → [0, 1] for RdBu_r: blue=inhibitory(<0), red=excitatory(>0)
+        w_01 = (w_norm + 1.0) / 2.0
+        rgba = cm.get_cmap("RdBu_r")(w_01)  # (kH, kW, 4)
+        rgb_np = (rgba[:, :, :3] * 255).astype(np.uint8)
+
         img = Image.fromarray(rgb_np).resize((128, 128), Image.NEAREST)
         buf = io.BytesIO()
         img.save(buf, format="PNG")

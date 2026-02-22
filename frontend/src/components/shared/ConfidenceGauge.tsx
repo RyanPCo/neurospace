@@ -7,7 +7,13 @@ interface Props {
 
 export function ConfidenceGauge({ confidence, predicted_class }: Props) {
   const pct = confidence != null ? confidence * 100 : 0
-  const color = predicted_class === 'malignant' ? 'bg-red-500' : 'bg-green-500'
+  const classColors: Record<string, string> = {
+    glioma: 'bg-red-500',
+    meningioma: 'bg-orange-500',
+    pituitary: 'bg-blue-500',
+    notumor: 'bg-green-500',
+  }
+  const color = classColors[predicted_class ?? ''] ?? 'bg-slate-500'
 
   return (
     <div className="space-y-1">

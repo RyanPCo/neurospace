@@ -1,9 +1,23 @@
 import { create } from 'zustand'
 import type { Annotation, AnnotationCreate } from '../types'
 import { annotationsApi } from '../api/annotations'
+import { toast } from '../components/shared/Toast'
 
-export type Tool = 'polygon' | 'brush' | 'eraser'
-export type LabelClass = 'malignant' | 'benign'
+const ANNOTATION_SYNC_KEY = 'cancerscope:annotation-updated'
+
+function broadcastAnnotationUpdate(imageId: string) {
+  try {
+    localStorage.setItem(
+      ANNOTATION_SYNC_KEY,
+      JSON.stringify({ imageId, ts: Date.now() })
+    )
+  } catch {
+    // no-op in restricted environments
+  }
+}
+
+export type Tool = 'polygon' | 'brush'
+export type LabelClass = 'glioma' | 'meningioma' | 'notumor' | 'pituitary' | 'gradcam_focus'
 
 interface Point { x: number; y: number }
 
@@ -12,11 +26,9 @@ interface AnnotationStore {
   activeTool: Tool
   activeClass: LabelClass
   brushRadius: number
-  // In-progress drawing state
   currentPolygon: Point[]
   currentBrush: Point[]
-  loading: boolean
-  error: string | null
+  saving: boolean
 
   fetchAnnotations: (imageId: string) => Promise<void>
   setTool: (tool: Tool) => void
@@ -33,20 +45,18 @@ interface AnnotationStore {
 export const useAnnotationStore = create<AnnotationStore>((set, get) => ({
   annotations: [],
   activeTool: 'polygon',
-  activeClass: 'malignant',
+  activeClass: 'glioma',
   brushRadius: 0.02,
   currentPolygon: [],
   currentBrush: [],
-  loading: false,
-  error: null,
+  saving: false,
 
   fetchAnnotations: async (imageId) => {
-    set({ loading: true })
     try {
       const data = await annotationsApi.list(imageId)
-      set({ annotations: data, loading: false })
+      set({ annotations: data })
     } catch (e: any) {
-      set({ error: e.message, loading: false })
+      toast.error(`Failed to load annotations: ${e.message}`)
     }
   },
 
@@ -61,31 +71,50 @@ export const useAnnotationStore = create<AnnotationStore>((set, get) => ({
   savePolygon: async (imageId) => {
     const { currentPolygon, activeClass } = get()
     if (currentPolygon.length < 3) return
-    const body: AnnotationCreate = {
-      image_id: imageId,
-      label_class: activeClass,
-      geometry_type: 'polygon',
-      geometry_json: JSON.stringify({ points: currentPolygon }),
+    set({ saving: true })
+    try {
+      const body: AnnotationCreate = {
+        image_id: imageId, label_class: activeClass, geometry_type: 'polygon',
+        geometry_json: JSON.stringify({ points: currentPolygon }),
+      }
+      const ann = await annotationsApi.create(body)
+      set(s => ({ annotations: [...s.annotations, ann], currentPolygon: [], saving: false }))
+      broadcastAnnotationUpdate(imageId)
+      toast.success('Annotation saved')
+    } catch (e: any) {
+      set({ saving: false })
+      toast.error(`Failed to save annotation: ${e.message}`)
     }
-    const ann = await annotationsApi.create(body)
-    set(s => ({ annotations: [...s.annotations, ann], currentPolygon: [] }))
   },
 
   saveBrush: async (imageId) => {
     const { currentBrush, activeClass, brushRadius } = get()
     if (currentBrush.length === 0) return
-    const body: AnnotationCreate = {
-      image_id: imageId,
-      label_class: activeClass,
-      geometry_type: 'brush',
-      geometry_json: JSON.stringify({ strokes: currentBrush, radius: brushRadius }),
+    set({ saving: true })
+    try {
+      const body: AnnotationCreate = {
+        image_id: imageId, label_class: activeClass, geometry_type: 'brush',
+        geometry_json: JSON.stringify({ strokes: currentBrush, radius: brushRadius }),
+      }
+      const ann = await annotationsApi.create(body)
+      set(s => ({ annotations: [...s.annotations, ann], currentBrush: [], saving: false }))
+      broadcastAnnotationUpdate(imageId)
+      toast.success('Annotation saved')
+    } catch (e: any) {
+      set({ saving: false })
+      toast.error(`Failed to save annotation: ${e.message}`)
     }
-    const ann = await annotationsApi.create(body)
-    set(s => ({ annotations: [...s.annotations, ann], currentBrush: [] }))
   },
 
   deleteAnnotation: async (id) => {
-    await annotationsApi.delete(id)
-    set(s => ({ annotations: s.annotations.filter(a => a.id !== id) }))
+    try {
+      const imageId = get().annotations.find(a => a.id === id)?.image_id
+      await annotationsApi.delete(id)
+      set(s => ({ annotations: s.annotations.filter(a => a.id !== id) }))
+      if (imageId) broadcastAnnotationUpdate(imageId)
+      toast.success('Annotation deleted')
+    } catch (e: any) {
+      toast.error(`Failed to delete annotation: ${e.message}`)
+    }
   },
 }))

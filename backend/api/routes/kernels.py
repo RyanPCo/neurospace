@@ -83,7 +83,7 @@ def get_kernel_activations(kernel_id: str, db: Session = Depends(get_db)):
     if not mm.is_loaded():
         raise HTTPException(503, "Model not loaded")
 
-    from core.dataset.breakhis import make_dataloaders
+    from core.dataset.brain_tumor import make_dataloaders
     loaders = make_dataloaders(batch_size=16, num_workers=0)
     if "val" not in loaders:
         raise HTTPException(503, "Validation dataset not available. Run 'make index' first.")

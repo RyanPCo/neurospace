@@ -34,9 +34,9 @@ export function ImageCard({ image, selected, onClick }: Props) {
       <div className="p-2 space-y-1">
         <div className="flex items-center justify-between gap-1">
           <ClassBadge cls={image.predicted_class} size="sm" />
-          <span className="text-xs text-gray-500">{image.magnification}</span>
+          <span className="text-xs text-gray-500 capitalize">{image.split}</span>
         </div>
-        <div className="text-xs text-gray-500 truncate">{image.subtype}</div>
+        <div className="text-xs text-gray-500 truncate capitalize">GT: {image.ground_truth}</div>
       </div>
     </div>
   )

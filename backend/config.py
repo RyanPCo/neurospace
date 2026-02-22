@@ -3,11 +3,14 @@ from pathlib import Path
 import torch
 
 
+TUMOR_CLASSES = ["glioma", "meningioma", "notumor", "pituitary"]
+
+
 class Settings(BaseSettings):
     # Paths
     base_dir: Path = Path(__file__).parent.parent
     data_dir: Path = base_dir / "data"
-    raw_data_dir: Path = data_dir / "raw" / "BreaKHis_v1"
+    raw_data_dir: Path = data_dir / "raw" / "brain_tumor_mri"
     processed_dir: Path = data_dir / "processed"
     splits_dir: Path = data_dir / "splits"
     models_dir: Path = base_dir / "models"
@@ -20,15 +23,14 @@ class Settings(BaseSettings):
     learning_rate: float = 1e-4
     weight_decay: float = 1e-4
     batch_size: int = 32
-    num_epochs: int = 10
+    num_epochs: int = 30
     num_workers: int = 4
-    binary_loss_weight: float = 0.7
-    subtype_loss_weight: float = 0.3
     spatial_loss_weight: float = 0.3
 
     # Model
-    dropout_rate: float = 0.4
-    num_subtypes: int = 8
+    num_classes: int = 4
+    image_size: int = 256
+    dropout_rate: float = 0.5
 
     # Device
     @property

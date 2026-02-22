@@ -1,24 +1,24 @@
-"""Train and validation image transforms for BreakHis dataset."""
+"""Image transforms for Brain Tumor MRI (grayscale 256×256)."""
 from torchvision import transforms
 
-IMAGENET_MEAN = [0.485, 0.456, 0.406]
-IMAGENET_STD = [0.229, 0.224, 0.225]
+# Single-channel mean/std computed on the dataset (approx 0.2/0.3 for brain MRI).
+# Using 0.5/0.5 centres the distribution simply without ImageNet values.
+_MEAN = [0.5]
+_STD  = [0.5]
 
 train_transforms = transforms.Compose([
     transforms.Resize((256, 256)),
-    transforms.RandomCrop(224),
     transforms.RandomHorizontalFlip(),
-    transforms.RandomVerticalFlip(),
-    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1, hue=0.05),
     transforms.RandomRotation(15),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2),
+    transforms.ToTensor(),               # (1, 256, 256) — PIL L-mode → 1 channel
+    transforms.Normalize(mean=_MEAN, std=_STD),
 ])
 
 val_transforms = transforms.Compose([
-    transforms.Resize((224, 224)),
+    transforms.Resize((256, 256)),
     transforms.ToTensor(),
-    transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
+    transforms.Normalize(mean=_MEAN, std=_STD),
 ])
 
 inference_transforms = val_transforms

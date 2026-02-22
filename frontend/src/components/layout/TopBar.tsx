@@ -12,7 +12,7 @@ export function TopBar() {
 
   return (
     <header className="h-12 bg-gray-900 border-b border-gray-800 flex items-center px-4 gap-4">
-      <span className="text-sm font-medium text-gray-300 flex-1">Breast Cancer Histopathology Workbench</span>
+      <span className="text-sm font-medium text-gray-300 flex-1">Brain Tumor MRI Workbench</span>
       <div className="flex items-center gap-2 text-xs">
         <span className="text-gray-500">Training:</span>
         <StatusBadge status={status} />

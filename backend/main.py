@@ -10,6 +10,7 @@ from api.routes.kernels import router as kernels_router
 from api.routes.annotations import router as annotations_router
 from api.routes.predictions import router as predictions_router
 from api.routes.training import router as training_router, ws_router
+from api.routes.volumes import router as volumes_router
 
 
 @asynccontextmanager
@@ -34,7 +35,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="CancerScope",
-    description="Breast cancer histopathology AI workbench",
+    description="Brain tumor MRI AI workbench",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -53,6 +54,7 @@ app.include_router(annotations_router)
 app.include_router(predictions_router)
 app.include_router(training_router)
 app.include_router(ws_router)
+app.include_router(volumes_router)
 
 
 @app.get("/api/health")

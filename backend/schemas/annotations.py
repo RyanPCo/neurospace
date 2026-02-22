@@ -5,7 +5,7 @@ from datetime import datetime
 
 class AnnotationCreate(BaseModel):
     image_id: str
-    label_class: str  # "malignant" or "benign"
+    label_class: str  # "glioma"/"meningioma"/"pituitary"/"notumor"/"gradcam_focus"
     geometry_type: str  # "polygon" or "brush"
     geometry_json: str  # JSON string with normalized coords
     notes: Optional[str] = None

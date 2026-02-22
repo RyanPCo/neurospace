@@ -19,7 +19,9 @@ export function formatDatetime(s: string | null): string {
 }
 
 export function classColor(cls: string | null): string {
-  if (cls === 'malignant') return '#ef4444'
-  if (cls === 'benign') return '#22c55e'
+  if (cls === 'glioma') return '#ef4444'
+  if (cls === 'meningioma') return '#f97316'
+  if (cls === 'pituitary') return '#3b82f6'
+  if (cls === 'notumor') return '#22c55e'
   return '#94a3b8'
 }
